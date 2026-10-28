@@ -1,0 +1,10 @@
+[Unit]
+Description=@ASSISTANT_NAME@: alert owner that %i failed
+
+[Service]
+Type=oneshot
+User=@AGENT_USER@
+# чтение журнала чужого юнита без root
+SupplementaryGroups=systemd-journal
+Environment=TZ=@TZ@
+ExecStart=/bin/bash @AGENT_HOME@/bin/notify_failure.sh %i

@@ -1,0 +1,9 @@
+[Unit]
+Description=@ASSISTANT_NAME@: weekly mentor session, @MENTOR_DAY@ @MENTOR_TIME@ (@TZ@)
+
+[Timer]
+OnCalendar=@MENTOR_DAY@ *-*-* @MENTOR_TIME@:00 @TZ@
+Persistent=true
+
+[Install]
+WantedBy=timers.target

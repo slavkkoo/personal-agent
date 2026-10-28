@@ -1,0 +1,20 @@
+[Unit]
+Description=@ASSISTANT_NAME@: personal assistant Telegram bot (owner only)
+After=network-online.target
+Wants=network-online.target
+OnFailure=personal-agent-failed@%n.service
+
+[Service]
+User=@AGENT_USER@
+WorkingDirectory=@AGENT_HOME@
+EnvironmentFile=@USER_HOME@/.claude-token.env
+Environment=TZ=@TZ@
+Environment=PATH=@USER_HOME@/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=@PYTHON3@ @AGENT_HOME@/bin/assistant_bot.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

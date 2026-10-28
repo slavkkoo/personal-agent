@@ -1,0 +1,3 @@
+# Только для чтения Telegram-аккаунта (bin/read_personal.py, bin/tg_login.py).
+# Остальное — stdlib. Ставится в .venv: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+telethon>=1.36

@@ -1,0 +1,16 @@
+[Unit]
+Description=@ASSISTANT_NAME@: morning personal briefing
+After=network-online.target
+Wants=network-online.target
+OnFailure=personal-agent-failed@%n.service
+
+[Service]
+Type=oneshot
+User=@AGENT_USER@
+WorkingDirectory=@AGENT_HOME@
+EnvironmentFile=@USER_HOME@/.claude-token.env
+Environment=TZ=@TZ@
+ExecStart=/bin/bash @AGENT_HOME@/bin/run_briefing.sh
+TimeoutStartSec=20min
+NoNewPrivileges=yes
+PrivateTmp=yes

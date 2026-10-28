@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/@AGENT_HOME@/run/**)",
+      "Read(/@AGENT_HOME@/memory/**)",
+      "Read(/@AGENT_HOME@/bin/**)",
+      "Read(/@AGENT_HOME@/.claude-config/skills/**)",
+      "Bash(@AGENT_HOME@/bin/gl_task *)",
+      "Bash(@AGENT_HOME@/bin/tasks *)",
+      "Bash(@AGENT_HOME@/.venv/bin/python3 @AGENT_HOME@/bin/read_personal.py*)",
+      "Bash(python3 @AGENT_HOME@/bin/read_calendar.py*)",
+      "Bash(python3 @AGENT_HOME@/bin/mail_triage.py*)"
+    ],
+    "deny": [
+      "Read(/@AGENT_HOME@/.env)",
+      "Read(/@AGENT_HOME@/.env*)",
+      "Read(/@AGENT_HOME@/*.session)",
+      "Read(/@AGENT_HOME@/*.session*)",
+      "Read(/@USER_HOME@/.claude-token.env)",
+      "Read(/@AGENT_HOME@/.claude-config/*.json)",
+      "Read(/@AGENT_HOME@/.claude-config/.credentials*)",
+      "Read(/@AGENT_HOME@/.claude-config/projects/**)",
+      "Read(//home/@TEAM_AGENT_USER@/**)",
+      "Read(//root/**)",
+      "Grep(/@AGENT_HOME@/.env*)",
+      "Grep(/@AGENT_HOME@/*.session*)",
+      "Grep(/@USER_HOME@/.claude-token.env)",
+      "Write",
+      "Edit",
+      "NotebookEdit",
+      "WebFetch",
+      "WebSearch",
+      "Bash(rm*)",
+      "Bash(curl*)",
+      "Bash(wget*)",
+      "Bash(python3 -c*)",
+      "Bash(cat*)",
+      "Bash(env*)",
+      "Bash(printenv*)"
+    ]
+  }
+}

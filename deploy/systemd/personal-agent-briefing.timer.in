@@ -1,0 +1,9 @@
+[Unit]
+Description=@ASSISTANT_NAME@: morning briefing daily at @BRIEFING_TIME@ (@TZ@)
+
+[Timer]
+OnCalendar=*-*-* @BRIEFING_TIME@:00 @TZ@
+Persistent=true
+
+[Install]
+WantedBy=timers.target

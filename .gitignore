@@ -1,0 +1,29 @@
+# секреты
+.env
+.env.*
+!.env.example
+*.token.env
+.claude-token.env
+# Telegram-сессии
+*.session
+*.session-journal
+*.session.old-*
+*_new.session
+# рантайм и данные (живут только на сервере и в бэкапе)
+memory/
+logs/
+run/
+*_run/
+.claude-config/
+# дампы
+*.dump
+*.jsonl
+personal.txt
+mentor_input.txt
+# окружение
+.venv/
+__pycache__/
+*.pyc
+._*
+*.bak*
+.DS_Store

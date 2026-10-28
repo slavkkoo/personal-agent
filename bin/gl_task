@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""Задачи GitLab для личного ассистента: читать, искать, создавать, добавлять лейблы.
+
+Настройки в .env: GITLAB_URL, GITLAB_TOKEN (scope api), GITLAB_PROJECT (числовой id
+или путь group/project), GITLAB_LABELS (whitelist через запятую), GITLAB_MARKER
+(пометка в описании; по умолчанию «Создано через ассистента <ASSISTANT_NAME>»).
+
+Намеренные ограничения — таких команд здесь НЕТ, и это не баг:
+- закрыть, удалить задачу, снять лейбл;
+- править текст чужих задач: edit работает только для задач, в описании которых
+  есть GITLAB_MARKER (то есть созданных через ассистента).
+Лейблы — только из GITLAB_LABELS.
+
+Usage:
+  gl_task view <iid>                                    # заголовок/статус/лейблы/описание/комменты
+  gl_task search "<слова>" [--state opened|closed|all]  # поиск по заголовку и описанию
+  gl_task create --title "..." [--description "..."] [--labels "bug,feature"]
+  gl_task label --iid N --labels "<лейбл>"              # ДОБАВИТЬ лейблы
+  gl_task edit --iid N --description "..."              # описание СВОЕЙ задачи
+  Пишущие команды принимают --dry-run: показать запрос, ничего не отправляя.
+  Проверяйте пишущие команды ТОЛЬКО на тестовой задаче или тестовом проекте.
+"""
+import argparse
+import json
+import os
+import sys
+import urllib.parse
+import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import pa_common as pa  # noqa: E402
+
+
+def base():
+    if not pa.gitlab_enabled():
+        sys.exit("GitLab не настроен: нужны GITLAB_URL, GITLAB_TOKEN, GITLAB_PROJECT в .env")
+    proj = urllib.parse.quote(os.environ["GITLAB_PROJECT"].strip(), safe="")
+    return f"{os.environ['GITLAB_URL'].rstrip('/')}/api/v4/projects/{proj}"
+
+
+def call(path, data=None, method=None, dry=False):
+    url = base() + path
+    body = urllib.parse.urlencode(data).encode() if data is not None else None
+    if dry:
+        print(f"[dry-run] {method or ('POST' if body else 'GET')} {url}")
+        for k, v in (data or {}).items():
+            print(f"  {k}: {v}")
+        return None
+    req = urllib.request.Request(url, data=body, method=method,
+                                 headers={"PRIVATE-TOKEN": os.environ["GITLAB_TOKEN"]})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.load(r)
+
+
+def check_labels(raw):
+    allowed = set(pa.gitlab_labels())
+    labels = [x.strip() for x in raw.split(",") if x.strip()]
+    bad = [x for x in labels if x not in allowed]
+    if bad:
+        sys.exit(f"недопустимые лейблы {bad}; можно: {sorted(allowed) or 'ничего (GITLAB_LABELS пуст)'}")
+    return labels
+
+
+def signed(description):
+    return description.rstrip() + f"\n\n_{pa.gitlab_marker()} (личный ассистент)._"
+
+
+def view(iid):
+    i = call(f"/issues/{iid}")
+    ms = (i.get("milestone") or {}).get("title") or "—"
+    print(f"#{i['iid']} [{i['state']}] {i['title']}")
+    print(f"labels: {', '.join(i['labels']) or '—'} | milestone: {ms} | обновлена: {i['updated_at'][:10]}")
+    print(f"url: {i['web_url']}")
+    print("\n--- описание ---")
+    print((i.get("description") or "(пусто)")[:3000])
+    try:
+        notes = [n for n in call(f"/issues/{iid}/notes?sort=desc&per_page=20") if not n.get("system")][:5]
+        if notes:
+            print("\n--- последние комментарии ---")
+            for n in reversed(notes):
+                print(f"[{n['created_at'][:10]}] {n['author']['name']}: {n['body'][:400]}")
+    except Exception:
+        pass
+
+
+def search(q, state):
+    qs = urllib.parse.urlencode({"search": q, "state": state, "per_page": 15, "order_by": "updated_at"})
+    items = call(f"/issues?{qs}")
+    if not items:
+        print("ничего не нашлось")
+    for i in items:
+        print(f"#{i['iid']} [{i['state']}] {i['title'][:100]} | {', '.join(i['labels'][:4]) or '—'} | {i['updated_at'][:10]}")
+
+
+def create(title, description, labels, dry):
+    labels = check_labels(labels)
+    if len(title) < 8:
+        sys.exit("заголовок слишком короткий — опиши суть")
+    d = call("/issues", {"title": title, "description": signed(description),
+                         "labels": ",".join(labels)}, dry=dry)
+    if d:
+        print(f"создана: #{d['iid']} {d['title']}")
+        print(d["web_url"])
+
+
+def label(iid, raw, dry):
+    labels = check_labels(raw)
+    if not labels:
+        sys.exit("не указаны лейблы")
+    d = call(f"/issues/{iid}", {"add_labels": ",".join(labels)}, method="PUT", dry=dry)
+    if d:
+        print(f"лейблы #{d['iid']}: {', '.join(d['labels'])}")
+        print(d["web_url"])
+
+
+def edit(iid, description, dry):
+    # Правим ТОЛЬКО свои задачи (с пометкой) — чужие тексты не трогаем.
+    i = call(f"/issues/{iid}")
+    mark = pa.gitlab_marker()
+    if mark not in (i.get("description") or ""):
+        sys.exit(f"#{iid} создана не через ассистента (нет пометки «{mark}») — описание не правлю")
+    d = call(f"/issues/{iid}", {"description": signed(description)}, method="PUT", dry=dry)
+    if d:
+        print(f"описание #{d['iid']} обновлено")
+        print(d["web_url"])
+
+
+def main():
+    ap = argparse.ArgumentParser(description="GitLab для личного ассистента (без close/delete/unlabel)")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    v = sub.add_parser("view")
+    v.add_argument("iid", type=int)
+    se = sub.add_parser("search")
+    se.add_argument("q")
+    se.add_argument("--state", default="opened", choices=["opened", "closed", "all"])
+    c = sub.add_parser("create")
+    c.add_argument("--title", required=True)
+    c.add_argument("--description", default="")
+    c.add_argument("--labels", default="")
+    c.add_argument("--dry-run", action="store_true")
+    lb = sub.add_parser("label")
+    lb.add_argument("--iid", required=True, type=int)
+    lb.add_argument("--labels", required=True)
+    lb.add_argument("--dry-run", action="store_true")
+    ed = sub.add_parser("edit")
+    ed.add_argument("--iid", required=True, type=int)
+    ed.add_argument("--description", required=True)
+    ed.add_argument("--dry-run", action="store_true")
+    a = ap.parse_args()
+    pa.load_env()
+
+    if a.cmd == "view":
+        view(a.iid)
+    elif a.cmd == "search":
+        search(a.q, a.state)
+    elif a.cmd == "create":
+        create(a.title, a.description, a.labels, a.dry_run)
+    elif a.cmd == "label":
+        label(a.iid, a.labels, a.dry_run)
+    elif a.cmd == "edit":
+        edit(a.iid, a.description, a.dry_run)
+
+
+if __name__ == "__main__":
+    main()
