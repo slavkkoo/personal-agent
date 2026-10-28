@@ -136,6 +136,26 @@ def gitlab_marker():
     return os.environ.get("GITLAB_MARKER") or f"Создано через ассистента {cfg('ASSISTANT_NAME')}"
 
 
+# ---------- MCP (connectors/mcp, выключен по умолчанию) ----------
+
+_mcp = {}
+
+
+def mcp_setup():
+    """→ (аргументы claude, разрешённые инструменты). Пусто MCP_CONFIG — ([], [])."""
+    if not os.environ.get("MCP_CONFIG", "").strip():
+        return [], []
+    if "m" not in _mcp:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("mcp_check", path("connectors", "mcp", "mcp_check.py"))
+        _mcp["m"] = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_mcp["m"])
+    args, tools, errs = _mcp["m"].setup(dict(os.environ), AGENT_HOME)
+    if errs:
+        print("WARN: MCP: " + "; ".join(errs)[:400], file=sys.stderr)
+    return args, tools
+
+
 # ---------- рендер промптов ----------
 
 def base_vars():
@@ -174,6 +194,12 @@ def render(name, extra=None, raw=None):
         with open(path("prompts", "assistant-gitlab.md"), encoding="utf-8") as f:
             gl = _fill(f.read(), values, "assistant-gitlab").strip()
     values["GITLAB_TOOLS"] = gl or "- GitLab не настроен: задачи в трекере ты не читаешь и не создаёшь."
+    values["MCP_TOOLS"] = ""
+    tools = mcp_setup()[1]
+    if tools:   # коннектор MCP выключен (пусто MCP_CONFIG) — промпт не меняется ни на байт
+        with open(path("connectors", "mcp", "prompt.md"), encoding="utf-8") as f:
+            values["MCP_TOOLS"] = "\n" + _fill(f.read(), dict(values, MCP_TOOLS=", ".join(f"`{t}`" for t in tools)),
+                                               "mcp").strip()
     values.update(extra or {})
     markers = {}
     for i, k in enumerate(raw or {}):

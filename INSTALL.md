@@ -322,6 +322,22 @@ $ cd /home/assistant/.local/share/personal-agent && sudo AGENT_USER=assistant ./
 После любой правки `TZ`, `BRIEFING_TIME` или `MENTOR_*` в `.env` запустите `install.sh`
 ещё раз и скопируйте юниты.
 
+## 12a. Коннектор MCP (опционально)
+
+Если хотите подключить Notion, Google или трекер задач через MCP вместо app-паролей и своих
+скриптов:
+
+```bash
+cd ~/.local/share/personal-agent
+cp connectors/mcp/mcp.json.example config/mcp.json && chmod 600 config/mcp.json
+nano config/mcp.json                       # свои серверы и токены (минимальные права)
+nano .env                                  # MCP_CONFIG=config/mcp.json, MCP_ALLOWED_TOOLS=mcp__<сервер>__<инструмент>,…
+python3 connectors/mcp/mcp_check.py check  # пишущие инструменты без MCP_ALLOW_WRITE_TOOLS=1 будут отклонены
+```
+
+Пусто `MCP_CONFIG` — MCP выключен, промпт не меняется. Права, риски и prompt injection —
+[connectors/README.md](connectors/README.md).
+
 ## 13. Включить
 
 ```bash

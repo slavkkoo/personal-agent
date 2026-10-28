@@ -16,6 +16,8 @@
       "Read(/@AGENT_HOME@/.env*)",
       "Read(/@AGENT_HOME@/*.session)",
       "Read(/@AGENT_HOME@/*.session*)",
+      "Read(/@AGENT_HOME@/config/mcp.json)",
+      "Grep(/@AGENT_HOME@/config/mcp.json)",
       "Read(/@USER_HOME@/.claude-token.env)",
       "Read(/@AGENT_HOME@/.claude-config/*.json)",
       "Read(/@AGENT_HOME@/.claude-config/.credentials*)",

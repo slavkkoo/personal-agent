@@ -101,6 +101,9 @@ if [ "$SRC" != "$AGENT_HOME" ]; then
   run cp -f "$SRC/deploy/claude-config-settings.json.in" "$AGENT_HOME/deploy/"
   run cp -f "$SRC"/deploy/systemd/*.in "$AGENT_HOME/deploy/systemd/"
   run cp -f "$SRC/requirements.txt" "$SRC/.env.example" "$AGENT_HOME/"
+  # коннекторы (connectors/mcp и т.п.): код — обновляем; ваш config/mcp.json живёт отдельно
+  run mkdir -p "$AGENT_HOME/connectors"
+  run cp -Rf "$SRC/connectors/." "$AGENT_HOME/connectors/"
   # промпты и конфиги — ваши правки не затираем
   for f in "$SRC"/prompts/*.md "$SRC"/config/*; do
     rel="${f#"$SRC"/}"
@@ -195,6 +198,10 @@ say "== проверки"
 for k in BOT_TOKEN OWNER_ID TG_API_ID TG_API_HASH; do
   [ -n "$(envget "$k" "")" ] || warn "$k не заполнен в .env"
 done
+if [ -n "$(envget MCP_CONFIG "")" ]; then
+  if [ "$DRY" = 1 ]; then say "[dry-run] MCP: проверка python3 connectors/mcp/mcp_check.py check"
+  else AGENT_HOME="$AGENT_HOME" python3 "$AGENT_HOME/connectors/mcp/mcp_check.py" check | sed 's/^/   MCP: /' || warn "MCP: конфиг или белый список с ошибками — MCP не подключится"; fi
+fi
 ls "$AGENT_HOME"/*.session >/dev/null 2>&1 || warn "нет Telegram-сессии — запустите bin/tg_login.py (INSTALL.md, шаг 7)"
 
 say ""

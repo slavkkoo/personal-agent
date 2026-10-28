@@ -89,10 +89,15 @@ def build_prompt(question, reply_ctx=""):
 def run_agent(prompt):
     env = dict(os.environ)
     env["CLAUDE_CONFIG_DIR"] = pa.path(".claude-config")
+    # MCP (connectors/mcp): только в чате с владельцем, по белому списку инструментов
+    mcp_args, _ = pa.mcp_setup()
+    deny = [t.strip() for t in os.environ.get("MCP_DISALLOWED_TOOLS", "").split(",") if t.strip()]
+    if mcp_args and deny:
+        mcp_args += ["--disallowedTools", *deny]
     try:
         out = subprocess.run(
             ["claude", "--model", pa.cfg("MODEL_ANSWER"), "--add-dir", pa.AGENT_HOME,
-             "--output-format", "json", "-p", prompt],
+             "--output-format", "json", *mcp_args, "-p", prompt],
             capture_output=True, text=True, timeout=QUERY_TIMEOUT_S, cwd=pa.AGENT_HOME, env=env)
         try:
             d = json.loads(out.stdout.strip())
